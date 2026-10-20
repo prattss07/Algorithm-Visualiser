@@ -1,7 +1,8 @@
 # Algorithm Visualiser (Java 17+, Swing)
 
 Animated sorting visualiser: 7 algorithms, play/pause/step/stop, speed control, sound,
-custom arrays, and a Race mode that runs two algorithms side by side on the same data.
+custom arrays, custom Java sorting methods, built-in source browsing, and a Race mode that
+runs two algorithms side by side on the same data.
 
 ## Build & run
     javac -encoding UTF-8 -d out $(find src -name "*.java")
@@ -25,3 +26,13 @@ custom arrays, and a Race mode that runs two algorithms side by side on the same
 ## Adding an algorithm
 Extend SortingAlgorithm, use only the ArrayModel operations (less / lessThan / swap / set /
 markSorted / setPivot), then add it to AlgorithmRegistry.all().
+
+## Custom code and built-in sources
+- Select **Write your own code** and enter the body of `sort(ArrayModel m)`. Use the animated
+  `ArrayModel` operations (`less`, `lessThan`, `swap`, `set`, `get`, and `markSorted`) to make
+  comparisons and writes visible. The code is compiled with the JDK, then selected and run in
+  the first visualisation lane. In Race mode it runs against the selected second algorithm.
+- Select **View algorithms** to browse the built-in Java source and complexity summaries.
+  Keep the project source folder available when launching the app so source browsing can find it.
+- Custom Java code is not sandboxed and runs with the current user's permissions. Only run code
+  you trust.

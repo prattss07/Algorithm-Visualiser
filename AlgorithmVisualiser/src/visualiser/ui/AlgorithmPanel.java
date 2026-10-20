@@ -2,7 +2,9 @@ package visualiser.ui;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Font;
 import java.awt.GridLayout;
+import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import javax.swing.*;
 import visualiser.algorithms.AlgorithmRegistry;
@@ -19,6 +21,10 @@ import visualiser.model.Snapshot;
  * state machine. All methods are called on the EDT; the sort itself runs on a worker thread.
  */
 final class AlgorithmPanel extends JPanel {
+    private static final Color SURFACE = new Color(0x111C2E);
+    private static final Color BORDER = new Color(0x263750);
+    private static final Color MUTED = new Color(0x93A6C1);
+
     interface StateListener { void stateChanged(AlgorithmPanel panel, RunState state); }
 
     private final JComboBox<SortingAlgorithm> combo =
@@ -39,22 +45,35 @@ final class AlgorithmPanel extends JPanel {
     private OperationListener opListener;
 
     AlgorithmPanel(int defaultAlgorithm, StateListener listener) {
-        super(new BorderLayout(4, 4));
+        super(new BorderLayout(10, 10));
         this.listener = listener;
+        setBackground(SURFACE);
+        setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER),
+                BorderFactory.createEmptyBorder(12, 12, 12, 12)));
         combo.setSelectedIndex(defaultAlgorithm);
+        combo.setBackground(new Color(0x1B2940));
+        combo.setForeground(new Color(0xEAF1FC));
+        combo.setFont(combo.getFont().deriveFont(Font.BOLD, 14f));
+        combo.setBorder(BorderFactory.createEmptyBorder(5, 7, 5, 7));
         combo.addActionListener(e -> updateInfo());
 
-        JPanel header = new JPanel(new BorderLayout(4, 4));
+        JPanel header = new JPanel(new BorderLayout(8, 8));
+        header.setOpaque(false);
         header.add(combo, BorderLayout.NORTH);
+        info.setForeground(MUTED);
+        info.setBorder(BorderFactory.createEmptyBorder(2, 2, 0, 2));
         header.add(info, BorderLayout.CENTER);
         JPanel footer = new JPanel(new GridLayout(2, 1));
+        footer.setOpaque(false);
+        stats.setForeground(new Color(0xDCE6F5));
+        stats.setFont(stats.getFont().deriveFont(Font.BOLD, 12f));
+        status.setForeground(MUTED);
         footer.add(stats);
         footer.add(status);
         add(header, BorderLayout.NORTH);
         add(bars, BorderLayout.CENTER);
         add(footer, BorderLayout.SOUTH);
-        setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
-
         updateInfo();
         new Timer(30, e -> refreshView()).start();     // GUI refresh is decoupled from the sorting thread
     }
@@ -114,6 +133,14 @@ final class AlgorithmPanel extends JPanel {
         if (model != null) model.setListener(l);
     }
 
+    void setCustomAlgorithm(SortingAlgorithm algorithm) {
+        ArrayList<SortingAlgorithm> choices = new ArrayList<>(AlgorithmRegistry.all());
+        choices.add(algorithm);
+        combo.setModel(new DefaultComboBoxModel<>(choices.toArray(new SortingAlgorithm[0])));
+        combo.setSelectedItem(algorithm);
+        updateInfo();
+    }
+
     void setPlace(int rank) { place = rank; updateStatus(); }
 
     // ---------------------------------------------------------------- internals
@@ -131,7 +158,14 @@ final class AlgorithmPanel extends JPanel {
     }
 
     private void updateStatus() {
-        status.setForeground(state == RunState.FAILED ? Color.RED : UIManager.getColor("Label.foreground"));
+        Color statusColor = switch (state) {
+            case RUNNING -> new Color(0x42D6C5);
+            case PAUSED -> new Color(0xF6C85F);
+            case DONE -> new Color(0x66D19E);
+            case FAILED -> new Color(0xFF6B7A);
+            default -> MUTED;
+        };
+        status.setForeground(statusColor);
         status.setText(switch (state) {
             case IDLE -> "Ready";
             case RUNNING -> "Running...";
