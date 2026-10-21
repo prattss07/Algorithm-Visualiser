@@ -5,6 +5,7 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import javax.swing.*;
 import visualiser.algorithms.AlgorithmRegistry;
@@ -21,14 +22,19 @@ import visualiser.model.Snapshot;
  * state machine. All methods are called on the EDT; the sort itself runs on a worker thread.
  */
 final class AlgorithmPanel extends JPanel {
+    public static final SortingAlgorithm WRITE_CUSTOM_ACTION = new SortingAlgorithm(
+            "+ Write your own code...", "N/A", "N/A", "N/A", "N/A",
+            "Write and compile a custom sorting algorithm from scratch.") {
+        @Override public void sort(ArrayModel m) {}
+    };
+
     private static final Color SURFACE = new Color(0x111C2E);
     private static final Color BORDER = new Color(0x263750);
     private static final Color MUTED = new Color(0x93A6C1);
 
     interface StateListener { void stateChanged(AlgorithmPanel panel, RunState state); }
 
-    private final JComboBox<SortingAlgorithm> combo =
-            new JComboBox<>(AlgorithmRegistry.all().toArray(new SortingAlgorithm[0]));
+    private final JComboBox<SortingAlgorithm> combo = new JComboBox<>();
     private final JLabel info = new JLabel(" ");
     private final JLabel stats = new JLabel(" ");
     private final JLabel status = new JLabel(" ");
@@ -44,6 +50,9 @@ final class AlgorithmPanel extends JPanel {
     private int delayMillis = 20;
     private OperationListener opListener;
 
+    private SortingAlgorithm lastValidSelection;
+    private Runnable onCustomCodeRequested;
+
     AlgorithmPanel(int defaultAlgorithm, StateListener listener) {
         super(new BorderLayout(10, 10));
         this.listener = listener;
@@ -51,12 +60,17 @@ final class AlgorithmPanel extends JPanel {
         setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(BORDER),
                 BorderFactory.createEmptyBorder(12, 12, 12, 12)));
-        combo.setSelectedIndex(defaultAlgorithm);
-        combo.setBackground(new Color(0x1B2940));
-        combo.setForeground(new Color(0xEAF1FC));
-        combo.setFont(combo.getFont().deriveFont(Font.BOLD, 14f));
-        combo.setBorder(BorderFactory.createEmptyBorder(5, 7, 5, 7));
-        combo.addActionListener(e -> updateInfo());
+
+        DarkComboBoxUI.apply(combo);
+        combo.setFont(combo.getFont().deriveFont(Font.BOLD, 13f));
+        refreshAlgorithms(null);
+
+        if (defaultAlgorithm >= 0 && defaultAlgorithm < combo.getItemCount()) {
+            combo.setSelectedIndex(defaultAlgorithm);
+            lastValidSelection = (SortingAlgorithm) combo.getSelectedItem();
+        }
+
+        combo.addActionListener(e -> onComboAction());
 
         JPanel header = new JPanel(new BorderLayout(8, 8));
         header.setOpaque(false);
@@ -76,6 +90,27 @@ final class AlgorithmPanel extends JPanel {
         add(footer, BorderLayout.SOUTH);
         updateInfo();
         new Timer(30, e -> refreshView()).start();     // GUI refresh is decoupled from the sorting thread
+    }
+
+    void setOnCustomCodeRequested(Runnable action) {
+        this.onCustomCodeRequested = action;
+    }
+
+    private void onComboAction() {
+        SortingAlgorithm a = (SortingAlgorithm) combo.getSelectedItem();
+        if (a == null) return;
+        if (a == WRITE_CUSTOM_ACTION) {
+            if (onCustomCodeRequested != null) {
+                // Revert selection so the combo box does not stay on the action item if cancelled
+                if (lastValidSelection != null) {
+                    combo.setSelectedItem(lastValidSelection);
+                }
+                onCustomCodeRequested.run();
+            }
+            return;
+        }
+        lastValidSelection = a;
+        updateInfo();
     }
 
     // ---------------------------------------------------------------- public API (EDT)
@@ -98,6 +133,7 @@ final class AlgorithmPanel extends JPanel {
     void start(ExecutorService executor, boolean startPaused) {
         if (state != RunState.IDLE) reset();
         SortingAlgorithm algo = (SortingAlgorithm) combo.getSelectedItem();
+        if (algo == null || algo == WRITE_CUSTOM_ACTION) return;
         ArrayModel m = model;
         control.setPaused(startPaused);
         SortRunner runner = new SortRunner(algo, m,
@@ -133,12 +169,25 @@ final class AlgorithmPanel extends JPanel {
         if (model != null) model.setListener(l);
     }
 
-    void setCustomAlgorithm(SortingAlgorithm algorithm) {
-        ArrayList<SortingAlgorithm> choices = new ArrayList<>(AlgorithmRegistry.all());
-        choices.add(algorithm);
-        combo.setModel(new DefaultComboBoxModel<>(choices.toArray(new SortingAlgorithm[0])));
-        combo.setSelectedItem(algorithm);
+    void refreshAlgorithms(SortingAlgorithm algorithmToSelect) {
+        SortingAlgorithm current = algorithmToSelect != null ? algorithmToSelect : (SortingAlgorithm) combo.getSelectedItem();
+        if (current == WRITE_CUSTOM_ACTION) current = lastValidSelection;
+        List<SortingAlgorithm> all = new ArrayList<>(AlgorithmRegistry.all());
+        all.add(WRITE_CUSTOM_ACTION);
+        combo.setModel(new DefaultComboBoxModel<>(all.toArray(new SortingAlgorithm[0])));
+        if (current != null && all.contains(current) && current != WRITE_CUSTOM_ACTION) {
+            combo.setSelectedItem(current);
+            lastValidSelection = current;
+        } else if (!all.isEmpty()) {
+            combo.setSelectedIndex(0);
+            lastValidSelection = (SortingAlgorithm) combo.getSelectedItem();
+        }
         updateInfo();
+    }
+
+    void setCustomAlgorithm(SortingAlgorithm algorithm) {
+        AlgorithmRegistry.register(algorithm);
+        refreshAlgorithms(algorithm);
     }
 
     void setPlace(int rank) { place = rank; updateStatus(); }
@@ -178,7 +227,7 @@ final class AlgorithmPanel extends JPanel {
 
     private void updateInfo() {
         SortingAlgorithm a = (SortingAlgorithm) combo.getSelectedItem();
-        if (a == null) return;
+        if (a == null || a == WRITE_CUSTOM_ACTION) return;
         info.setText("<html><body style='width:320px'>" + a.getComplexitySummary()
                 + "<br>" + a.getDescription() + "</body></html>");
     }

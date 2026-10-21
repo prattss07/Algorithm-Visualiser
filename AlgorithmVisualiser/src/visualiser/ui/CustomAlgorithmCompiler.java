@@ -24,7 +24,7 @@ final class CustomAlgorithmCompiler {
             import visualiser.model.ArrayModel;
             public final class UserSort_%s extends SortingAlgorithm {
                 public UserSort_%s() {
-                    super("Custom Java Sort", "User-defined", "User-defined", "User-defined",
+                    super("%s", "User-defined", "User-defined", "User-defined",
                           "User-defined", "User-provided sorting method.");
                 }
                 @Override public void sort(ArrayModel m) {
@@ -37,6 +37,10 @@ final class CustomAlgorithmCompiler {
     private CustomAlgorithmCompiler() { }
 
     static SortingAlgorithm compile(String body) throws IOException, CompilationException {
+        return compile("Custom Java Sort", body);
+    }
+
+    static SortingAlgorithm compile(String name, String body) throws IOException, CompilationException {
         var compiler = ToolProvider.getSystemJavaCompiler();
         if (compiler == null) {
             throw new CompilationException("A JDK is required to compile custom code. "
@@ -45,7 +49,10 @@ final class CustomAlgorithmCompiler {
 
         String className = UUID.randomUUID().toString().replace("-", "");
         String generatedClass = "UserSort_" + className;
-        String prefix = PREFIX.formatted(className, className);
+        String safeName = (name == null || name.isBlank())
+                ? "Custom Java Sort"
+                : name.replace("\\", "\\\\").replace("\"", "\\\"").trim();
+        String prefix = PREFIX.formatted(className, className, safeName);
         String source = prefix + body + System.lineSeparator() + SUFFIX;
         int firstBodyLine = (int) prefix.lines().count() + 1;
         Path outputDirectory = Files.createTempDirectory("algorithm-visualiser-");

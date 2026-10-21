@@ -13,6 +13,10 @@ public final class Main {
         UIManager.put("Label.foreground", new Color(0xDCE6F5));
         UIManager.put("ComboBox.background", new Color(0x1B2940));
         UIManager.put("ComboBox.foreground", new Color(0xEAF1FC));
+        UIManager.put("ComboBox.selectionBackground", new Color(0x203656));
+        UIManager.put("ComboBox.selectionForeground", new Color(0x42D6C5));
+        UIManager.put("ComboBox.disabledBackground", new Color(0x131D2D));
+        UIManager.put("ComboBox.disabledForeground", new Color(0x5E728E));
         UIManager.put("TextField.background", new Color(0x111C2E));
         UIManager.put("TextField.foreground", new Color(0xEAF1FC));
         UIManager.put("TextField.caretForeground", new Color(0xEAF1FC));

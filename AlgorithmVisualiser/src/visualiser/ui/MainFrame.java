@@ -7,6 +7,7 @@ import java.util.concurrent.Executors;
 import javax.swing.*;
 import visualiser.audio.SoundPlayer;
 import visualiser.audio.SoundUnavailableException;
+import visualiser.algorithms.AlgorithmRegistry;
 import visualiser.algorithms.SortingAlgorithm;
 import visualiser.engine.RunState;
 import visualiser.model.ArrayGenerator;
@@ -137,6 +138,9 @@ public class MainFrame extends JFrame {
         customLabel.setForeground(MUTED);
         customLabel.setFont(customLabel.getFont().deriveFont(Font.BOLD, 11f));
         dataCard.add(customLabel);
+        customField.setBackground(SURFACE);
+        customField.setForeground(new Color(0xEAF1FC));
+        customField.setCaretColor(ACCENT);
         customField.setToolTipText("Numbers 1-" + ArrayParser.MAX_VALUE + ", e.g. 5 3 8 1 9 2");
         customField.setPreferredSize(new Dimension(210, 34));
         customField.setBorder(BorderFactory.createCompoundBorder(
@@ -211,9 +215,8 @@ public class MainFrame extends JFrame {
     }
 
     private static void styleCombo(JComboBox<?> combo) {
-        combo.setBackground(new Color(0x1B2940));
-        combo.setForeground(new Color(0xEAF1FC));
-        combo.setPreferredSize(new Dimension(145, 34));
+        DarkComboBoxUI.apply(combo);
+        combo.setPreferredSize(new Dimension(150, 34));
     }
 
     private static void styleSlider(JSlider slider) {
@@ -242,6 +245,8 @@ public class MainFrame extends JFrame {
     }
 
     private void wireActions() {
+        panelA.setOnCustomCodeRequested(this::compileCustomCode);
+        panelB.setOnCustomCodeRequested(this::compileCustomCode);
         sizeSlider.addChangeListener(e -> sizeLabel.setText(sizeSlider.getValue() + " bars"));
         generateButton.addActionListener(e -> loadData(ArrayGenerator.generate(
                 sizeSlider.getValue(), (ArrayGenerator.Pattern) patternBox.getSelectedItem())));
@@ -284,20 +289,23 @@ public class MainFrame extends JFrame {
     }
 
     private void compileCustomCode() {
-        String body = CustomCodeDialog.prompt(this);
-        if (body == null) return;
+        CustomCodeDialog.CustomCodeResult result = CustomCodeDialog.prompt(this);
+        if (result == null || result.code() == null || result.code().isBlank()) return;
         compilingCustomCode = true;
         updateControls();
         new SwingWorker<SortingAlgorithm, Void>() {
             @Override protected SortingAlgorithm doInBackground() throws Exception {
-                return CustomAlgorithmCompiler.compile(body);
+                return CustomAlgorithmCompiler.compile(result.name(), result.code());
             }
 
             @Override protected void done() {
                 compilingCustomCode = false;
                 updateControls();
                 try {
-                    panelA.setCustomAlgorithm(get());
+                    SortingAlgorithm customAlgo = get();
+                    AlgorithmRegistry.register(customAlgo);
+                    panelA.refreshAlgorithms(customAlgo);
+                    panelB.refreshAlgorithms(null);
                     startAll(false);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();

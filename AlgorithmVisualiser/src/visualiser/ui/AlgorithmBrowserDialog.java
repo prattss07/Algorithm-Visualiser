@@ -35,8 +35,8 @@ final class AlgorithmBrowserDialog extends JDialog {
         JPanel header = new JPanel(new BorderLayout(8, 8));
         header.setOpaque(false);
         header.setBorder(BorderFactory.createEmptyBorder(14, 14, 4, 14));
-        algorithms.setBackground(new Color(0x1B2940));
-        algorithms.setForeground(new Color(0xEAF1FC));
+        DarkComboBoxUI.apply(algorithms);
+        algorithms.setFont(algorithms.getFont().deriveFont(Font.BOLD, 13f));
         header.add(algorithms, BorderLayout.NORTH);
         details.setForeground(MUTED);
         header.add(details, BorderLayout.SOUTH);
@@ -70,7 +70,10 @@ final class AlgorithmBrowserDialog extends JDialog {
             source.setText(Files.readString(file, StandardCharsets.UTF_8));
             source.setCaretPosition(0);
         } catch (IOException | URISyntaxException e) {
-            source.setText("Unable to load source for " + algorithm.getName() + ".\n" + e.getMessage());
+            source.setText("// " + algorithm.getName() + " (" + algorithm.getComplexitySummary() + ")\n"
+                    + "// " + algorithm.getDescription() + "\n\n"
+                    + "// Built-in source is available when running from the project folder.\n"
+                    + "// Custom algorithms run directly in the visualiser.");
             source.setCaretPosition(0);
         }
     }
